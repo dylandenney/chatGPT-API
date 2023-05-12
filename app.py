@@ -1,5 +1,6 @@
 import os
 import openai
+from openai import ChatCompletion
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -22,8 +23,12 @@ class Session(db.Model):
     response = db.Column(db.Text, nullable=False)
 
 
-db.create_all()
+def create_tables():
+    with app.app_context():
+        db.create_all()
 
+
+create_tables()
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -35,24 +40,29 @@ def chat():
     session_name = data["session_name"]
     content = data["content"]
 
-    prompt = f"[{session_name}]\n{content}\nResponse:"
-    payload = {
-        "prompt": prompt,
-        "max_tokens": 150,
-        "n": 1,
-        "stop": "\n",
-        "temperature": 0.8,
-    }
+    messages = [
+        {"role": "system", "content": f"Session: {session_name}"},
+        {"role": "user", "content": content},
+    ]
 
-    response = openai.Completion.create(engine="davinci-codex", **payload)
+    response = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages)
 
-    response_text = response.choices[0].text.strip()
+    response_text = response['choices'][0]['message']['content'].strip()
+
 
     session = Session(session_name=session_name, content=content, response=response_text)
     db.session.add(session)
     db.session.commit()
 
     return jsonify({"response": response_text})
+
+
+@app.route("/search", methods=["GET"])
+def search():
+    query = request.args.get("query", "")
+    sessions = Session.query.filter(Session.content.like(f"%{query}%")).all()
+    return jsonify([{"id": session.id, "session_name": session.session_name, "content": session.content, "response": session.response} for session in sessions])
+
 
 
 @app.route("/")
