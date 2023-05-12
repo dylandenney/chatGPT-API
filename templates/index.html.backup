@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatGPT API</title>
+    <script>
+        async function chat() {
+            const session_name = document.getElementById("session_name").value;
+            const content = document.getElementById("content").value;
+            const responseElement = document.getElementById("response");
+
+            const response = await fetch("/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    session_name: session_name,
+                    content: content,
+                }),
+            });
+
+            const responseData = await response.json();
+
+            if (response.status !== 200) {
+                responseElement.textContent = `Error: ${responseData.error}`;
+                return;
+            }
+
+            responseElement.textContent = responseData.response;
+        }
+	async function searchSessions() {
+	    const query = document.getElementById("search_query").value;
+	    const searchResultsElement = document.getElementById("search_results");
+
+	    const response = await fetch(`/search?query=${query}`, {
+		method: "GET",
+	    });
+
+	    const sessions = await response.json();
+	    searchResultsElement.innerHTML = "";
+
+	    for (const session of sessions) {
+		const sessionElement = document.createElement("div");
+		sessionElement.innerHTML = `<h3>${session.session_name}</h3><p>${session.content}</p><p>Response: ${session.response}</p>`;
+		searchResultsElement.appendChild(sessionElement);
+	    }
+	} 
+
+        async function searchSessions() {
+	    const query = document.getElementById("query").value;
+	    const responseElement = document.getElementById("search_results");
+	    const response = await fetch(`/search?query=${query}`);
+	    const results = await response.json();
+
+	    if (results.length === 0) {
+		responseElement.innerHTML = "<p>No results found.</p>";
+		return;
+	    }
+
+	    let tableHTML = `
+		<table>
+		    <tr>
+			<th>ID</th>
+			<th>Session Name</th>
+			<th>Content</th>
+			<th>Response</th>
+		    </tr>
+	    `;
+
+	    results.forEach((result) => {
+		tableHTML += `
+		    <tr>
+			<td>${result.id}</td>
+			<td>${result.session_name}</td>
+			<td>${result.content}</td>
+			<td>${result.response}</td>
+		    </tr>
+		`;
+	    });
+
+	    tableHTML += "</table>";
+	    responseElement.innerHTML = tableHTML;
+	}
+
+    </script>
+</head>
+<body>
+    <h1>ChatGPT API</h1>
+    <form onsubmit="event.preventDefault(); chat();">
+        <label for="session_name">Session Name:</label>
+        <input type="text" id="session_name" required>
+        <br>
+        <label for="content">Content:</label>
+        <textarea id="content" rows="4" cols="50" required></textarea>
+        <br>
+        <button type="submit">Send</button>
+    </form>
+    <h2>Response:</h2>
+    <pre id="response"></pre>
+        <h2>Search Sessions</h2>
+    <form onsubmit="event.preventDefault(); searchSessions();">
+        <label for="search_query">Search:</label>
+        <input type="text" id="search_query" required>
+        <button type="submit">Search</button>
+    </form>
+    <h2>Search Results:</h2>
+    <div id="search_results"></div>
+</body>
+</html>
+
